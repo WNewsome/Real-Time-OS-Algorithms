@@ -22,7 +22,6 @@ struct task {
 	bool set;			// true when the task is set
 	bool completed;		// true if task completed in its frame
 	int execution_time;	// Current execution time of a job
-	int frame;			// current frame number of a job
 	int period;			// Changing period
 	int times_executed;
 	int rel_deadline;
@@ -50,7 +49,7 @@ void create_task(string name, int period, int deadline, int capacity) {
 	int index = find_available_index();
 	if (index != -1) {
 		TASKS_GLOBAL[index] = { name, period, deadline, capacity, 
-			0, true, false, 0, 1, period, 0, deadline};
+			0, true, false, 0, period, 0, deadline};
 		tasks_count++;
 	}
 }
@@ -109,7 +108,6 @@ void execute(int ticks) {
 		// Job finished executing
 		run_task->completed = true;
 		run_task->execution_time = 0; // re-set
-		run_task->frame++;
 		run_task->times_executed++;
 		run_task->period = run_task->relative_period*run_task->times_executed;
 		run_task->deadline = run_task->period + run_task->rel_deadline;
@@ -121,9 +119,6 @@ void start_tasks() {
 	int ticks = 0;
 	// Let computer run for 20 seconds
 	for (int i = 0; i < 20; i++) {
-		if (ticks == 17) {
-			int x = 1;
-		}
 		execute(ticks);
 		ticks++;
 	}
@@ -133,18 +128,15 @@ int main()
 {
 	//			name,  T,  D,  C
 
-	// Test 1 https://www.youtube.com/watch?v=ejPXTOcMRPA
-	create_task("t1", 20, 7, 3);
-	create_task("t2", 5, 4, 2);
+	// Test 1: From https://www.youtube.com/watch?v=ejPXTOcMRPA
 	create_task("t3", 10, 8, 2);
+	create_task("t2", 5, 4, 2);
+	create_task("t1", 20, 7, 3);
 
 	// Test 2: from HW 3
-	/*
-	create_task("t1", 10, 10, 4);
-	create_task("t2", 17, 17, 12);
-	create_task("t3", 5, 5, 3);
-	*/
-
+	//create_task("t3", 5, 5, 3);
+	//create_task("t2", 17, 17, 12);
+	//create_task("t1", 10, 10, 4);
 	
 	start_tasks();
 }
