@@ -58,7 +58,7 @@ int main( void )
   //                                                                                                              T                 C                   D
   //vSchedulerPeriodicTaskCreate(testFunc1, "t1", configMINIMAL_STACK_SIZE, &c1, 1, &xHandle1, pdMS_TO_TICKS(0), pdMS_TO_TICKS(20), pdMS_TO_TICKS(3), pdMS_TO_TICKS(7));
   //vSchedulerPeriodicTaskCreate(testFunc2, "t2", configMINIMAL_STACK_SIZE, &c2, 2, &xHandle2, pdMS_TO_TICKS(0), pdMS_TO_TICKS(5), pdMS_TO_TICKS(2), pdMS_TO_TICKS(4));
-  //vSchedulerPeriodicTaskCreate(testFunc3, "t3", configMINIMAL_STACK_SIZE, &c3, 3, &xHandle3, pdMS_TO_TICKS(0), pdMS_TO_TICKS(10), pdMS_TO_TICKS(2),pdMS_TO_TICKS(8));
+  vSchedulerPeriodicTaskCreate(testFunc3, "t3", configMINIMAL_STACK_SIZE, &c3, 3, &xHandle3, pdMS_TO_TICKS(0), pdMS_TO_TICKS(10), pdMS_TO_TICKS(2),pdMS_TO_TICKS(8));
   if(configUSE_TICK_HOOK!=1){
     Serial.print("Enable configUSE_TICK_HOOK!");
   }

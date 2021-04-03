@@ -1,35 +1,15 @@
 #include "scheduler.h"
 #define MAX_TASKS 5
 int tasks_count = 0;
-struct task {
-    TaskFunction_t pvTaskCode;
-    const char *name;
-    UBaseType_t uxStackDepth;
-    void *pvParameters;
-    UBaseType_t priotiry;
-    TaskHandle_t *pxCreatedTask;
-    TickType_t xPhaseTick;          // Phase given in software ticks. Counted from when vSchedulerStart is called.
-    TickType_t relative_period;
-    TickType_t capacity;    // C
-    TickType_t deadline;
-    // --------------------------------------->
-
-	/* Given by user */
-	//const char * name;		// Name assigned to task
-	//int relative_period;// T: Period of the task
-	//int deadline;		// D: Deadline
-	//int capacity;		// C: Time of execution of the task
-
-	/* Set by algorithm*/
-	//int priotiry;		// P: priority
-	bool set;			// true when the task is set
-	bool completed;		// true if task completed in its frame
-	TickType_t execution_time;	// Current execution time of a job
-	TickType_t period;			// Changing period
-	int times_executed;
-	TickType_t rel_deadline;
-};
 task TASKS_GLOBAL[MAX_TASKS]; // Where the tasks will be stored
+
+bool operator<(task a, task b)
+{
+	// Overload operator to sort by deadlines
+	if (a.deadline < b.deadline) return true;
+	if (a.deadline > b.deadline) return false;
+	return false;
+}
 
 int find_available_index() {
 	for (int i = 0; i < MAX_TASKS; i++) {
@@ -119,12 +99,17 @@ void set_priorities() {
     // Need to sort TASKS_GLOBAL array according to deadlines
 	// Highest priority = shortest deadline
 	// Highest priority = index 0 in TASKS_GLOBAL
-    TickType_t temp = TASKS_GLOBAL[0].deadline;
-
-	for (int i = 0; i < MAX_TASKS; i++) {
-		if (temp > TASKS_GLOBAL[i].deadline){
-            TASKS_GLOBAL[0] = TASKS_GLOBAL[i];
-        }
+	int n = sizeof(TASKS_GLOBAL) / sizeof(TASKS_GLOBAL[0]);
+	int i, j, min;
+	task temp;
+	for (i = 0; i < n - 1; i++) {
+		min = i;
+		for (j = i + 1; j < n; j++)
+			if (TASKS_GLOBAL[j] < TASKS_GLOBAL[min])
+				min = j;
+		temp = TASKS_GLOBAL[i];
+		TASKS_GLOBAL[i] = TASKS_GLOBAL[min];
+		TASKS_GLOBAL[min] = temp;
 	}
     
     /*
@@ -134,6 +119,13 @@ void set_priorities() {
     //sort(TASKS_GLOBAL, TASKS_GLOBAL + tasks_count); // no #include <algorithm>
 	for (int i = 0; i < MAX_TASKS; i++) {
 		TASKS_GLOBAL[i].priotiry = MAX_TASKS - i;
+		if(TASKS_GLOBAL[i].set==true){
+			Serial.print(TASKS_GLOBAL[i].name);
+			Serial.print(" Priority ");
+			Serial.print(TASKS_GLOBAL[i].priotiry);
+			Serial.println();
+			Serial.flush();
+		}
 	}
 }
 
