@@ -1,4 +1,3 @@
-
 #include <Arduino_FreeRTOS.h>
 #include <Arduino.h>
 
@@ -9,4 +8,5 @@ TickType_t next_arrival_time();
 int get_available_high(TickType_t ticks);
 void execute(TickType_t ticks);
 void set_priorities();
+
 void vSchedulerStart();

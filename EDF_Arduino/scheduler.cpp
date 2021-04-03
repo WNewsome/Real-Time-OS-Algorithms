@@ -44,6 +44,7 @@ void vSchedulerPeriodicTaskCreate(TaskFunction_t pvTaskCode, const char *name, U
 	int index = find_available_index();
 	if (index != -1) {
         task * task = &TASKS_GLOBAL[index];
+		task->pvTaskCode = pvTaskCode;
         task->name = name;
         task->relative_period = period;
         task->deadline = deadline;
@@ -55,8 +56,25 @@ void vSchedulerPeriodicTaskCreate(TaskFunction_t pvTaskCode, const char *name, U
         task->period = period;
         task->times_executed = 0;
         task->rel_deadline = deadline;
-        
 		tasks_count++;
+
+		BaseType_t xReturnValue = xTaskCreate(pvTaskCode,
+					name,
+					uxStackDepth,
+					pvParameters,
+					uxPriority,
+					pxCreatedTask);
+			if(xReturnValue == pdPASS) {
+				Serial.print(name);
+				Serial.print(" task created");
+				Serial.println();
+				Serial.flush();
+			}
+			else
+			{
+				Serial.println("Task creation failed\n");
+				Serial.flush();
+			}
 	}
 }
 
@@ -141,13 +159,16 @@ void execute(TickType_t ticks) {
 }
 
 void vSchedulerStart() {
+	
+	Serial.flush();
 	set_priorities();
-	TickType_t ticks = xTaskGetTickCount();
-	// Let computer run for 20 ticks
-	for (;;) {
-        //Serial.println(ticks);
-       // Serial.flush();
-		execute(ticks);
-		ticks++;
-	}
+	//Serial.println("vSchedulerStart");
+	vTaskStartScheduler();
 }
+
+void vApplicationTickHook( void )
+{
+	TickType_t ticks = xTaskGetTickCount();
+	
+	//execute(ticks);
+}; 
