@@ -1,8 +1,13 @@
 #include "scheduler.h"
 #define MAX_TASKS 5
-int tasks_count = 0;
-task TASKS_GLOBAL[MAX_TASKS]; // Where the tasks will be stored
 
+#if( schedUSE_TCB_ARRAY == 1 )
+	static task TASKS_GLOBAL[MAX_TASKS]; // Where the tasks will be stored
+	TickType_t ticks = 0;
+	const char *temp_task_name;
+#endif 
+
+int tasks_count = 0;
 bool operator<(task a, task b)
 {
 	// Overload operator to sort by deadlines
@@ -37,7 +42,7 @@ void vSchedulerPeriodicTaskCreate(TaskFunction_t pvTaskCode, const char *name, U
         task->times_executed = 0;
         task->rel_deadline = deadline;
 		tasks_count++;
-
+		
 		BaseType_t xReturnValue = xTaskCreate(pvTaskCode,
 					name,
 					uxStackDepth,
@@ -56,6 +61,7 @@ void vSchedulerPeriodicTaskCreate(TaskFunction_t pvTaskCode, const char *name, U
 				Serial.flush();
 			}
 	}
+	
 }
 
 // Calculate the next arrival time
@@ -80,7 +86,6 @@ int get_available_high(TickType_t ticks) {
 		task = &TASKS_GLOBAL[i];
 		if (task->period == ticks) {
 			task->completed = false;
-			// I believe the issue is here
 			task->deadline = task->period + task->rel_deadline;
 		}
 	}
@@ -88,6 +93,7 @@ int get_available_high(TickType_t ticks) {
 		task = &TASKS_GLOBAL[i];
 		if (task->completed == false) {
 			return i;
+			
 		}
 	}
 
@@ -105,62 +111,109 @@ void set_priorities() {
 	for (i = 0; i < n - 1; i++) {
 		min = i;
 		for (j = i + 1; j < n; j++)
-			if (TASKS_GLOBAL[j] < TASKS_GLOBAL[min])
+			if (TASKS_GLOBAL[j] < TASKS_GLOBAL[min] && TASKS_GLOBAL[j].set==true)
 				min = j;
 		temp = TASKS_GLOBAL[i];
 		TASKS_GLOBAL[i] = TASKS_GLOBAL[min];
 		TASKS_GLOBAL[min] = temp;
 	}
-    
-    /*
-    T1  T2
-    2   1
-    */
-    //sort(TASKS_GLOBAL, TASKS_GLOBAL + tasks_count); // no #include <algorithm>
 	for (int i = 0; i < MAX_TASKS; i++) {
-		TASKS_GLOBAL[i].priotiry = MAX_TASKS - i;
+		//TASKS_GLOBAL[i].priotiry = MAX_TASKS - i;
 		if(TASKS_GLOBAL[i].set==true){
-			Serial.print(TASKS_GLOBAL[i].name);
-			Serial.print(" Priority ");
-			Serial.print(TASKS_GLOBAL[i].priotiry);
-			Serial.println();
-			Serial.flush();
+			TASKS_GLOBAL[i].priotiry = MAX_TASKS - i;
 		}
 	}
 }
 
-void execute(TickType_t ticks) {
+void execute() {
+	for (int i = 0; i < tasks_count; i++) {
+		if(TASKS_GLOBAL[i].set){
+			//Serial.print(TASKS_GLOBAL[i].name);
+			//Serial.print(" ");
+			//Serial.print(TASKS_GLOBAL[i].priotiry);
+			//Serial.println();
+		}
+		
+	}
+	//TickType_t ticks = xTaskGetTickCount();
+	
+	//Serial.println(ticks);
 	set_priorities();
 	task *run_task = &TASKS_GLOBAL[get_available_high(ticks)];
 	set_priorities();
 	run_task = &TASKS_GLOBAL[get_available_high(ticks)];
-
 	run_task->execution_time++;
-
+	
     //cout << run_task->name << " - ";
-    Serial.println(run_task->name);
-    Serial.flush();
+	if(temp_task_name!=run_task->name && run_task->set){
+		Serial.print("Executing: ");
+		Serial.print(run_task->name);
+		//Serial.print("here");
+		Serial.println();
+		Serial.flush();
+		temp_task_name=run_task->name;
+	}
+	
+	//vTaskDelay(1000 / portTICK_PERIOD_MS );
 	if (run_task->execution_time >= run_task->capacity) {
 		// Job finished executing
+		//Serial.println("running");
+		
 		run_task->completed = true;
+		
 		run_task->execution_time = 0; // re-set
+		
 		run_task->times_executed++;
-		run_task->period = run_task->relative_period*run_task->times_executed;
-		run_task->deadline = run_task->period + run_task->rel_deadline;
+		if(run_task->name == "t1" || run_task->name == "t2" || run_task->name == "t3" || run_task->name == "t4"){
+			run_task->period = run_task->relative_period*run_task->times_executed;
+			//Serial.println(run_task->period);
+			run_task->deadline = run_task->period + run_task->rel_deadline;
+		}
+		
 	}
+	
+	ticks++;
+	//return;
 }
 
 void vSchedulerStart() {
-	
-	Serial.flush();
+	//Serial.flush();
 	set_priorities();
 	//Serial.println("vSchedulerStart");
+	for(;;){
+		execute();
+    }
 	vTaskStartScheduler();
 }
 
 void vApplicationTickHook( void )
 {
-	TickType_t ticks = xTaskGetTickCount();
+	//TickType_t ticks = xTaskGetTickCount();
 	
 	//execute(ticks);
 }; 
+
+void create_execute(){
+	return;
+	/*
+	BaseType_t xReturnValue = xTaskCreate(execute,
+					"execute"
+					    ,  128
+    					,  NULL
+    					,  5
+    					,  NULL );
+						*/
+}
+static void prvInitTCBArray( void ){
+	#if( schedUSE_TCB_ARRAY == 1 )
+	for (int i = 0; i<MAX_TASKS;i++){
+		TASKS_GLOBAL[i].set=false;
+		TASKS_GLOBAL[i].name = "idle";
+		TASKS_GLOBAL[i].pxCreatedTask = NULL;
+	}
+	#endif /* schedUSE_TCB_ARRAY */
+}
+void vSchedulerInit( void )
+{
+	prvInitTCBArray();
+}
