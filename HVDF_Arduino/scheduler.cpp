@@ -5,6 +5,7 @@
 	static task TASKS_GLOBAL[MAX_TASKS]; // Where the tasks will be stored
 	static TickType_t ticks = 0;
 	const char *temp_task_name;
+	static TaskHandle_t xSchedulerHandle = NULL;
 #endif 
 
 int tasks_count = 0;
@@ -227,7 +228,7 @@ void create_execute(){
 					    ,  128
     					,  (void*)&ticks
     					,  5
-    					,  NULL );
+    					,  &xSchedulerHandle );
 
 }
 
