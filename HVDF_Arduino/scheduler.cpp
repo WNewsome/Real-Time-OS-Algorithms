@@ -5,7 +5,6 @@ static void execute(void *pvParameters);
 	static task TASKS_GLOBAL[MAX_TASKS]; // Where the tasks will be stored
 	static TickType_t ticks = 0;
 	const char *temp_task_name;
-	
 #endif 
 
 int tasks_count = 0;
@@ -56,29 +55,16 @@ void vSchedulerPeriodicTaskCreate(TaskFunction_t pvTaskCode, const char *name, U
         task->rel_deadline = deadline;
 		task->value;
 		tasks_count++;
-
-		BaseType_t xReturnValue = xTaskCreate(execute,
-					name,
-					uxStackDepth,
-					pvParameters,
-					uxPriority,
-					pxCreatedTask);
-			if(xReturnValue == pdPASS && Value>0) {
-				Serial.print(name);
-				Serial.print(" task created. Value:");
-				Serial.print(Value);
-				Serial.print(", Period:");
-				Serial.print(period);
-				Serial.print(", Deadline:");
-				Serial.print(deadline);
-				Serial.println();
-				Serial.flush();
-			}
-			else
-			{
-				Serial.println("Task creation failed\n");
-				Serial.flush();
-			}
+		Serial.print(name);
+		Serial.print(" task created. Value:");
+		Serial.print(Value);
+		Serial.print(", Period:");
+		Serial.print(period);
+		Serial.print(", Deadline:");
+		Serial.print(deadline);
+		Serial.println();
+		Serial.flush();
+		return;
 	}
 	
 }
@@ -116,7 +102,7 @@ int get_available_high(TickType_t ticks) {
 		}
 	}
 
-	return MAX_TASKS; // Non found, return idle task
+	return MAX_TASKS; // None found, return idle task
 }
 
 
@@ -146,7 +132,7 @@ void set_priorities() {
 }
 
 static void execute(void *pvParameters) {
-
+	while(1){
 	for (int i = 0; i < tasks_count; i++) {
 		if(TASKS_GLOBAL[i].set){
 			// Print all tasks name and priority
@@ -158,12 +144,11 @@ static void execute(void *pvParameters) {
 			*/
 		}
 	}
-	//TickType_t ticks_ = xTaskGetTickCount();
+	TickType_t ticks_ = xTaskGetTickCount();
 	
 	//Serial.println(ticks);
 	set_priorities();
-	task *run_task_p = &TASKS_GLOBAL[get_available_high(ticks)];
-
+	task * run_task_p = &TASKS_GLOBAL[get_available_high(ticks)];
 	set_priorities();
 	task * run_task = &TASKS_GLOBAL[get_available_high(ticks)];
 
@@ -176,14 +161,16 @@ static void execute(void *pvParameters) {
 			Serial.print(run_task_p->name);
 			Serial.println(" missed deadline");
 			Serial.println();
+			Serial.flush();
 		}
 		if(run_task->name == "t1" || run_task->name == "t2" || run_task->name == "t3" || run_task->name == "t4"){
-		Serial.print("Executing: ");
-		Serial.print(run_task->name);
-		Serial.print(", started at ");
-		Serial.print(ticks);
-		Serial.println();
-		Serial.flush();
+			vTaskDelay(run_task_p->execution_time);
+			Serial.print("Executing: ");
+			Serial.print(run_task->name);
+			Serial.print(", started at ");
+			Serial.print(ticks);
+			Serial.println();
+			Serial.flush();
 		} else {
 			Serial.print("Executing: Idle, started at ");
 			Serial.print(ticks);
@@ -192,8 +179,7 @@ static void execute(void *pvParameters) {
 		}
 		temp_task_name=run_task->name;
 	}
-	
-	//vTaskDelay(1000 / portTICK_PERIOD_MS );
+
 	if (run_task->execution_time >= run_task->capacity) {
 		// Job finished executing
 		run_task->completed = true;
@@ -208,23 +194,19 @@ static void execute(void *pvParameters) {
 		}
 		
 	}
-	
-	ticks++;
+	}
 }
 
 void vSchedulerStart() {
-	//Serial.flush();
 	set_priorities();
-	//Serial.println("vSchedulerStart");
-	for(;;){
-		execute(NULL);
-    }
 	create_execute();
 	vTaskStartScheduler();
 }
 
 void vApplicationTickHook( void )
 {
+	ticks++;
+	return;
 	set_priorities();
 	task *run_task_p = &TASKS_GLOBAL[get_available_high(ticks)];
 
@@ -233,22 +215,6 @@ void vApplicationTickHook( void )
 
 	run_task->execution_time++;
 	
-	if(temp_task_name!=run_task->name && run_task->set){
-		// Print name of executing task
-		if(run_task_p->name != run_task->name){
-			// Check for deadline missed
-			Serial.print(run_task_p->name);
-			Serial.println(" missed deadline");
-			Serial.println();
-		}
-		Serial.print("Executing: ");
-		Serial.print(run_task->name);
-		Serial.print(", started at ");
-		Serial.print(ticks);
-		Serial.println();
-		Serial.flush();
-		temp_task_name=run_task->name;
-	}
 }; 
 
 void create_execute(){
