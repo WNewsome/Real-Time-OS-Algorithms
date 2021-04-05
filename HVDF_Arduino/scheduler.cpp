@@ -1,17 +1,17 @@
 #include "scheduler.h"
 #define MAX_TASKS 5
-
+static void execute(void *pvParameters);
 #if( schedUSE_TCB_ARRAY == 1 )
 	static task TASKS_GLOBAL[MAX_TASKS]; // Where the tasks will be stored
 	static TickType_t ticks = 0;
 	const char *temp_task_name;
-	static TaskHandle_t xSchedulerHandle = NULL;
+	
 #endif 
 
 int tasks_count = 0;
 bool operator<(task a, task b)
 {
-	
+	// Overload operator to sort tasks
 	// Use for HVDF
 	float A_value = a.value/a.capacity;
 	float B_value = b.value/b.capacity;
@@ -38,6 +38,7 @@ int find_available_index() {
 
 void vSchedulerPeriodicTaskCreate(TaskFunction_t pvTaskCode, const char *name, UBaseType_t uxStackDepth, void *pvParameters, UBaseType_t uxPriority,
 		TaskHandle_t *pxCreatedTask, TickType_t xPhaseTick, TickType_t period, TickType_t capacity, TickType_t deadline, int Value ) {
+	// This function adds tasks parameter to global container
 	int index = find_available_index();
 	if (index != -1) {
         task * task = &TASKS_GLOBAL[index];
@@ -56,20 +57,20 @@ void vSchedulerPeriodicTaskCreate(TaskFunction_t pvTaskCode, const char *name, U
 		task->value;
 		tasks_count++;
 
-		Serial.print(name);
-		Serial.print(" task created");
-		Serial.println();
-		Serial.flush();
-		/*
-		BaseType_t xReturnValue = xTaskCreate(pvTaskCode,
+		BaseType_t xReturnValue = xTaskCreate(execute,
 					name,
 					uxStackDepth,
 					pvParameters,
 					uxPriority,
 					pxCreatedTask);
-			if(xReturnValue == pdPASS) {
+			if(xReturnValue == pdPASS && Value>0) {
 				Serial.print(name);
-				Serial.print(" task created");
+				Serial.print(" task created. Value:");
+				Serial.print(Value);
+				Serial.print(", Period:");
+				Serial.print(period);
+				Serial.print(", Deadline:");
+				Serial.print(deadline);
 				Serial.println();
 				Serial.flush();
 			}
@@ -78,7 +79,6 @@ void vSchedulerPeriodicTaskCreate(TaskFunction_t pvTaskCode, const char *name, U
 				Serial.println("Task creation failed\n");
 				Serial.flush();
 			}
-		*/
 	}
 	
 }
@@ -116,7 +116,7 @@ int get_available_high(TickType_t ticks) {
 		}
 	}
 
-	return MAX_TASKS; // Return idle task
+	return MAX_TASKS; // Non found, return idle task
 }
 
 
@@ -127,6 +127,7 @@ void set_priorities() {
 	int i, j, min;
 	task temp;
 	// Selection Sort Algorithm
+	// Thanks to https://stackoverflow.com/questions/61260095/selection-sort-isnt-sorting-correctly
 	for (i = 0; i < n - 1; i++) {
 		min = i;
 		for (j = i + 1; j < n; j++)
@@ -144,19 +145,18 @@ void set_priorities() {
 	}
 }
 
-static void execute() {
-
-	//Serial.println(ticks);
-	//Serial.flush();
+static void execute(void *pvParameters) {
 
 	for (int i = 0; i < tasks_count; i++) {
 		if(TASKS_GLOBAL[i].set){
-			//Serial.print(TASKS_GLOBAL[i].name);
-			//Serial.print(" ");
-			//Serial.print(TASKS_GLOBAL[i].priotiry);
-			//Serial.println();
+			// Print all tasks name and priority
+			/*
+			Serial.print(TASKS_GLOBAL[i].name);
+			Serial.print(" ");
+			Serial.print(TASKS_GLOBAL[i].priotiry);
+			Serial.println();
+			*/
 		}
-		
 	}
 	//TickType_t ticks_ = xTaskGetTickCount();
 	
@@ -169,32 +169,39 @@ static void execute() {
 
 	run_task->execution_time++;
 	
-    //cout << run_task->name << " - ";
 	if(temp_task_name!=run_task->name && run_task->set){
+		// Print name of executing task
 		if(run_task_p->name != run_task->name){
+			// Check for deadline missed
 			Serial.print(run_task_p->name);
 			Serial.println(" missed deadline");
 			Serial.println();
 		}
+		if(run_task->name == "t1" || run_task->name == "t2" || run_task->name == "t3" || run_task->name == "t4"){
 		Serial.print("Executing: ");
 		Serial.print(run_task->name);
-		//Serial.print("here");
+		Serial.print(", started at ");
+		Serial.print(ticks);
 		Serial.println();
 		Serial.flush();
+		} else {
+			Serial.print("Executing: Idle, started at ");
+			Serial.print(ticks);
+			Serial.println();
+			Serial.flush();
+		}
 		temp_task_name=run_task->name;
 	}
 	
 	//vTaskDelay(1000 / portTICK_PERIOD_MS );
 	if (run_task->execution_time >= run_task->capacity) {
 		// Job finished executing
-		//Serial.println("running");
-		
 		run_task->completed = true;
-		
 		run_task->execution_time = 0; // re-set
 		
 		run_task->times_executed++;
 		if(run_task->name == "t1" || run_task->name == "t2" || run_task->name == "t3" || run_task->name == "t4"){
+			// Re-set task's parameters when job was finished execution
 			run_task->period = run_task->relative_period*run_task->times_executed;
 			//Serial.println(run_task->period);
 			run_task->deadline = run_task->period + run_task->rel_deadline;
@@ -203,7 +210,6 @@ static void execute() {
 	}
 	
 	ticks++;
-	//return;
 }
 
 void vSchedulerStart() {
@@ -211,14 +217,38 @@ void vSchedulerStart() {
 	set_priorities();
 	//Serial.println("vSchedulerStart");
 	for(;;){
-		execute();
+		execute(NULL);
     }
+	create_execute();
 	vTaskStartScheduler();
 }
 
 void vApplicationTickHook( void )
 {
+	set_priorities();
+	task *run_task_p = &TASKS_GLOBAL[get_available_high(ticks)];
 
+	set_priorities();
+	task * run_task = &TASKS_GLOBAL[get_available_high(ticks)];
+
+	run_task->execution_time++;
+	
+	if(temp_task_name!=run_task->name && run_task->set){
+		// Print name of executing task
+		if(run_task_p->name != run_task->name){
+			// Check for deadline missed
+			Serial.print(run_task_p->name);
+			Serial.println(" missed deadline");
+			Serial.println();
+		}
+		Serial.print("Executing: ");
+		Serial.print(run_task->name);
+		Serial.print(", started at ");
+		Serial.print(ticks);
+		Serial.println();
+		Serial.flush();
+		temp_task_name=run_task->name;
+	}
 }; 
 
 void create_execute(){
@@ -226,9 +256,9 @@ void create_execute(){
 	BaseType_t xReturnValue = xTaskCreate(execute,
 					"execute"
 					    ,  128
-    					,  (void*)&ticks
+    					,  NULL
     					,  5
-    					,  &xSchedulerHandle );
+    					,  NULL );
 
 }
 
