@@ -162,6 +162,7 @@ static void execute(void *pvParameters) {
 			Serial.println(" missed deadline");
 			Serial.println();
 			Serial.flush();
+			vTaskDelay(10);
 		}
 		if(run_task->name == "t1" || run_task->name == "t2" || run_task->name == "t3" || run_task->name == "t4"){
 			vTaskDelay(run_task_p->execution_time);
