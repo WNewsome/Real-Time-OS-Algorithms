@@ -27,7 +27,7 @@ void vSchedulerPeriodicTaskCreate( TaskFunction_t pvTaskCode, const char *pcName
 		TaskHandle_t *pxCreatedTask, TickType_t xPhaseTick, TickType_t xPeriodTick, TickType_t xMaxExecTimeTick, TickType_t xDeadlineTick );//void set_priorities();
 TickType_t next_arrival_time();
 int get_available_high(TickType_t ticks);
-void execute(void *pvParameters);
+
 void set_priorities();
 void vSchedulerStart();
 void create_execute();
